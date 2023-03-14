@@ -1,0 +1,353 @@
+---
+title: "174 project"
+output: html_document
+date: "2023-03-02"
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+Importing and creating my data sets. The data sets don't actually have missing data. There are just two additional empty rows at the bottom of each one. 
+```{r}
+Females <- read_csv("Downloads/Female174.csv")
+Males <- read_csv("Downloads/Male174.csv")
+
+MalesDenmark <- na.omit(Males$`Sum of Male Denmark`)
+MalesNorway <- na.omit(Males$`Sum of Male Norway`)
+FemalesDenmark <- na.omit(Females$`Sum of Female Denmark`)
+FemalesNorway <- na.omit(Females$`Sum of Female Norway`)
+```
+
+Creating time series plots of my data. Using frequency equals to 1 since my 
+data is yearly.
+```{r}
+NorwayMale <- ts(MalesNorway, start = 1846, end = 2020, frequency = 1)
+DenmarkMale <- ts(MalesDenmark, start = 1846, end = 2020, frequency = 1)
+plot(NorwayMale)
+plot(DenmarkMale)
+
+```
+Continued time series plots.
+```{r}
+NorwayFemale <- ts(FemalesNorway, start = 1846, end = 2020, frequency = 1)
+plot(NorwayFemale)
+DenmarkFemale <- ts(FemalesDenmark, start = 1846, end = 2020, frequency = 1)
+plot(DenmarkFemale)
+```
+Histograms of my data sets 
+```{r}
+hist(FemalesDenmark)
+hist(FemalesNorway)
+hist(MalesDenmark)
+hist(MalesNorway)
+```
+Since there are clear trends in all of my data sets, I need to make transformations to make my data sets stationary. The variation appears to be seasonal or at least proportional to the level of the time series. To make the decomposition additive, I first need to perform a box-cox transformation to stabilize the variance. 
+```{r}
+BCMalesDenmark <- boxcox(lm(MalesDenmark ~ 1))
+BCFemalesDenmark <- boxcox(lm(FemalesDenmark ~ 1))
+BCMalesNorway <- boxcox(lm(MalesNorway ~ 1))
+BCFemalesNorway <- boxcox(lm(FemalesNorway ~ 1))
+```
+For the Norway data sets, the 95% confidence interval includes 0 so I perform a log transformation for those. For the Denmark data sets, lambda is approximately -1. 
+
+
+Histograms of transformed Norway data sets
+```{r}
+TransformedMalesNorway <- log(MalesNorway, 10)
+TransformedFemalesNorway <- log(FemalesNorway, 10)
+hist(TransformedFemalesNorway)
+hist(TransformedMalesNorway)
+```
+
+Here I transform the Denmark data sets using the box-cox transformation with lambda = -1. I also plot histograms of my transformed data.
+```{r}
+TransformedMalesDenmark <- ((MalesDenmark ^ -1) - 1) / -1
+TransformedFemalesDenmark <- ((FemalesDenmark ^ -1) - 1) / -1
+hist(TransformedMalesDenmark)
+hist(TransformedFemalesDenmark)
+```
+
+These are the new time series plots after the variance has been stabalized by the box-cox transformation.
+```{r}
+NorwayMale1 <- ts(TransformedMalesNorway, start = 1846, end = 2020, frequency = 1)
+DenmarkMale1 <- ts(TransformedMalesDenmark, start = 1846, end = 2020, frequency = 1)
+plot(NorwayMale1)
+plot(DenmarkMale1)
+NorwayFemale1 <- ts(TransformedFemalesNorway, start = 1846, end = 2020, frequency = 1)
+DenmarkFemale1 <- ts(TransformedFemalesDenmark, start = 1846, end = 2020, frequency = 1)
+plot(NorwayFemale1)
+plot(DenmarkFemale1)
+```
+
+Here I look at the overall trend of my female deaths in Norway. The trend appears to be sinusoidal which suggests that I should take the 2nd or 3rd difference to remove it. Moreover, the ACF doesn't reach 0 until large values of the lag. This is because an observation on one side of the overall mean tends to be followed by a large number of observations on the same side of the mean because of the trend.
+```{r}
+par(mfrow=c(2,1), mar=c(3,4,3,4))
+plot(TransformedFemalesNorway, type="l", xlab="", ylab="")
+title(xlab="Time", ylab="Series", line=2, cex.lab=1.2)
+acf(TransformedFemalesNorway, na.action = na.pass, ylab="", main="")
+title(xlab="Lag", ylab="ACF", line=2)
+```
+
+For female deaths in Denmark, the trend appears to be somewhat linear so I take the first difference to remove the trend. Once again for the ACF, values don't reach 0 until large values of the lag.
+```{r}
+par(mfrow=c(2,1), mar=c(3,4,3,4))
+plot(TransformedFemalesDenmark, type="l", xlab="", ylab="")
+title(xlab="Time", ylab="Series", line=2, cex.lab=1.2)
+acf(TransformedFemalesDenmark, na.action = na.pass, ylab="", main="")
+title(xlab="Lag", ylab="ACF", line=2)
+```
+
+For male deaths in Norway, The trend is once again sinusoidal which suggests taking the second or third difference. The ACF plot is also similar to the previous ones. 
+```{r}
+par(mfrow=c(2,1), mar=c(3,4,3,4))
+plot(TransformedMalesNorway, type="l", xlab="", ylab="")
+title(xlab="Time", ylab="Series", line=2, cex.lab=1.2)
+acf(TransformedMalesNorway, na.action = na.pass, ylab="", main="")
+title(xlab="Lag", ylab="ACF", line=2)
+```
+
+The trend in male deaths in Denmark appears to be somewhat linear which means taking the first difference. The ACF also doesn't reach 0 until large values of lag.
+```{r}
+par(mfrow=c(2,1), mar=c(3,4,3,4))
+plot(TransformedMalesDenmark, type="l", xlab="", ylab="")
+title(xlab="Time", ylab="Series", line=2, cex.lab=1.2)
+acf(TransformedMalesDenmark, na.action = na.pass, ylab="", main="")
+title(xlab="Lag", ylab="ACF", line=2)
+```
+
+After taking the first difference of my Denmark data sets, I plot the new data to see that the trends have been removed. Also, the average mean doesn't appear to change over time. Moreover, I plot both of the ACFs to see that they are now 
+mostly within the confidence interval, closer to 0, and resemble white noise.
+```{r}
+TransformedMalesDenmark1 <- diff(TransformedMalesDenmark, lag = 1)
+TransformedFemalesDenmark1 <- diff(TransformedFemalesDenmark, lag = 1) 
+
+par(mfrow=c(2,1), mar=c(3,4,3,4))
+plot(TransformedMalesDenmark1, type="l", xlab="", ylab="")
+title(xlab="Time", ylab="Series", line=2, cex.lab=1.2)
+acf(TransformedMalesDenmark1, na.action = na.pass, ylab="", main="")
+title(xlab="Lag", ylab="ACF", line=2)
+
+par(mfrow=c(2,1), mar=c(3,4,3,4))
+plot(TransformedFemalesDenmark1, type="l", xlab="", ylab="")
+title(xlab="Time", ylab="Series", line=2, cex.lab=1.2)
+acf(TransformedFemalesDenmark1, na.action = na.pass, ylab="", main="")
+title(xlab="Lag", ylab="ACF", line=2)
+
+```
+
+After experimenting with lag = 2 and lag = 3, lag = 3 gives me results that are more stationary. Originally, I had thought that the trends present in the Norway data sets were parabolic, but this shows that they aren't since otherwise 
+lag = 2 would've given the better result. Once again, the average remains constant throughout the data. The ACF plots also have values that are mostly in the confidence interval and closer to 0. 
+```{r}
+TransformedMalesNorway1 <- diff(TransformedMalesNorway, lag = 3) 
+TransformedFemalesNorway1 <- diff(TransformedFemalesNorway, lag = 3) 
+
+par(mfrow=c(2,1), mar=c(3,4,3,4))
+plot(TransformedMalesNorway1, type="l", xlab="", ylab="")
+title(xlab="Time", ylab="Series", line=2, cex.lab=1.2)
+acf(TransformedMalesNorway1, na.action = na.pass, ylab="", main="")
+title(xlab="Lag", ylab="ACF", line=2)
+
+par(mfrow=c(2,1), mar=c(3,4,3,4))
+plot(TransformedFemalesNorway1, type="l", xlab="", ylab="")
+title(xlab="Time", ylab="Series", line=2, cex.lab=1.2)
+acf(TransformedFemalesNorway1, na.action = na.pass, ylab="", main="")
+title(xlab="Lag", ylab="ACF", line=2)
+
+```
+
+I use the ADF test to see if my original data sets were stationary or not. The null hypothesis for the ADF test is that the data isn't stationary while the alternate hypothesis is that they are stationary. Since the p-values are all 
+greater than the default significance level of .05, we fail to reject the null and conclude that they are non-stationary
+```{r}
+library(tseries)
+adf.test(ts(FemalesNorway))
+adf.test(ts(MalesNorway))
+adf.test(ts(FemalesDenmark))
+adf.test(ts(MalesDenmark))
+```
+
+I now perform the same ADF using my new data sets after performing box-cox to stabilize variance and differencing to remove trends. The p-values are all smaller than .05 which means that I can reject the null hypothesis and conclude that my data sets are stationary. This means that I can begin modeling. 
+```{r}
+adf.test(ts(TransformedFemalesDenmark1))
+adf.test(ts(TransformedMalesDenmark1))
+adf.test(ts(TransformedFemalesNorway1))
+adf.test(ts(TransformedMalesNorway1))
+```
+I can reject the Null since all p-values are less than .05 and conclude I have not got useful autocorrelation structure - so I can model this with time series models such as AR(p), MA(q) and ARMA(p,q) (ARIMA(p,d,q))
+```{r}
+Box.test(TransformedFemalesDenmark1, lag = 1, type = c("Ljung-Box"), fitdf = 0)
+Box.test(TransformedMalesDenmark1, lag = 1, type = c("Ljung-Box"), fitdf = 0)
+Box.test(TransformedFemalesNorway1, lag = 1, type = c("Ljung-Box"), fitdf = 0)
+Box.test(TransformedMalesNorway1, lag = 1, type = c("Ljung-Box"), fitdf = 0)
+```
+Trying both an AR(1) model and an AR(2) model. P represents the autoregressive order of the of the model and represents the number of lagged values. Lower AIC scores indicate a better fit for the model. AR(2) appears to be a better.
+```{r}
+AR1TFD = tseries::arma(TransformedFemalesDenmark1, order=c(1,0,0) )
+summary(AR1TFD)
+AR2TFD = tseries::arma(TransformedFemalesDenmark1, order=c(2,0,0) )
+summary(AR2TFD)
+```
+
+Trying both an MA(1) model and an MA(2) model. q represents the moving average order of the of the model. Lower AIC scores indicate a better fit for the model. MA(2) looks to be the better fit.
+```{r}
+MA1TFD = tseries::arma(TransformedFemalesDenmark1, order=c(0,1,0) )
+summary(MA1TFD)
+MA2TFD = tseries::arma(TransformedFemalesDenmark1, order=c(0,2,0) )
+summary(MA2TFD)
+```
+
+
+Here I use auto.arima to find the best model. The function tells me that it is ARIMA(5,0,0) so I plot that and check the residuals. The graph of the residuals appears to be somewhat normally distributed which is the sign of a good fit. 
+Moreover, the residuals seems to have a mean of close to 0. Our forecast for this model is nearly flat has very low variability. Furthermore, the AIC for this model is lower than the AIC for AR(1), AR(2), MA(1), and MA(2) which means
+its a better fit than those.
+```{r}
+fit1 <- auto.arima(TransformedFemalesDenmark1, max.order = 2, trace=TRUE)
+summary(fit1)
+
+checkresiduals(fit1)
+arimaTFD <- arima(ts(TransformedFemalesDenmark1), order = c(5,0,0))
+plot(forecast(arimaTFD), main = 'Forecasts from Arima(5,0,0) with zero mean')
+
+```
+
+Here I am once again trying an AR(1) and AR(2) model. This time on the male deaths in Denmark data set. Ar(2) has the lower AIC score which indicates it is a better fit.
+```{r}
+AR1TMD = tseries::arma(TransformedMalesDenmark1, order=c(1,0,0) )
+summary(AR1TMD)
+AR2TMD = tseries::arma(TransformedMalesDenmark1, order=c(2,0,0) )
+summary(AR2TMD)
+```
+
+Here I am once again trying an MA(1) and MA(2) model. This time on the male deaths in Denmark data set. MA(2) has the lower AIC score which indicates it is a better fit.
+```{r}
+MA1TMD = tseries::arma(TransformedMalesDenmark1, order=c(0,1,0) )
+summary(MA1TMD)
+MA2TMD = tseries::arma(TransformedMalesDenmark1, order=c(0,2,0) )
+summary(MA2TMD)
+```
+
+Again I use auto.arima to find the best model. The function tells me that it is ARIMA(0,0,0) so I plot that and check the residuals. The graph of the residuals appears to be normally distributed which is the sign of a good fit. The residuals seems to have a mean of close to 0. Our forecast for this model is flat which might be a sign of bad fit. Furthermore, the AIC for this model is greater than the AIC for MA(2) which means that MA(2) might be the better fit.
+```{r}
+fit <- auto.arima(TransformedMalesDenmark1, max.order = 2, trace=TRUE)
+summary(fit)
+
+checkresiduals(TransformedMalesDenmark1)
+arimaTMD <- arima(ts(TransformedMalesDenmark1), order = c(0,0,0))
+plot(forecast(arimaTMD), main = 'Forecasts from Arima(0,0,0) with zero mean')
+
+```
+
+Sarima plot for male deaths in Denmark. The model seems to be a good fit since the ACF values
+look like white noise and the residuals have an average of about one. 
+
+```{r}
+sarimaTMD <- sarima(TransformedMalesDenmark1, 1,0,0)
+summary(sarimaTMD)
+sarimaTMD$fit$coef
+```
+
+
+Repeated process on female deaths in Norway data set. Based off of AIC AR(2) seems to be the better fit. 
+```{r}
+AR1TFN = tseries::arma(TransformedFemalesNorway1, order=c(1,0,0) )
+summary(AR1TFN)
+AR2TFN = tseries::arma(TransformedFemalesNorway1, order=c(2,0,0) )
+summary(AR2TFN)
+```
+
+Repeated process with MA(1) and MA(2). The better AIC is from MA(2).
+```{r}
+MA1TFN = tseries::arma(TransformedFemalesNorway1, order=c(0,1,0) )
+summary(MA1TFN)
+MA2TFN = tseries::arma(TransformedFemalesNorway1, order=c(0,2,0) )
+summary(MA2TFN)
+```
+
+Running auto.arima gives us ARIMA(5,0,1) as the best model. After plotting it I can see that residuals are normally distributed and have a mean of about 0. Moreover, the AIC is less than the AIC of both the AR models and both of the MA models which suggests that it's a better fit. Forecasting into the future I get the same up and down movement but less extreme than the past.
+```{r}
+fit <- auto.arima(TransformedFemalesNorway1, trace=TRUE)
+summary(fit)
+
+checkresiduals(TransformedFemalesNorway1)
+arimaTFN <- arima(ts(TransformedFemalesNorway1), order = c(5,0,1))
+plot(forecast(arimaTFN, h=20), main = 'Forecasts from Arima(5,0,1) with zero mean')
+```
+
+Looking at sarima for Females in Norway. The model seems to be a good fit since the ACF values
+look like white noise and the residuals have an average of about one. 
+```{r}
+sarimaTFN <- sarima(TransformedFemalesNorway1, 1,0,0)
+summary(sarimaTFN)
+sarimaTFN$fit$coef
+
+```
+
+Reapeated process with male deaths in Norway. AR(2) has the lower AIC.
+```{r}
+AR1TMN = tseries::arma(TransformedMalesNorway1, order=c(1,0,0) )
+summary(AR1TMN)
+AR2TMN = tseries::arma(TransformedMalesNorway1, order=c(2,0,0) )
+summary(AR2TMN)
+```
+
+Repeated process and once again MA(2) is a better fit. 
+```{r}
+MA1TMN = tseries::arma(TransformedMalesNorway1, order=c(0,1,0) )
+summary(MA1TMN)
+MA2TMN = tseries::arma(TransformedMalesNorway1, order=c(0,2,0) )
+summary(MA2TMN)
+```
+
+Running auto.arima gives us ARIMA(2,0,1) as the best model. Checking the residuals shows us the normal distribution and the average of about 0 for the residuals. However, out of all of the models MA(2) has the lowest AIC which means it's the best fit. The forecast for my data starts off high then flattens out. 
+```{r}
+fit <- auto.arima(TransformedMalesNorway1, trace=TRUE)
+summary(fit)
+
+checkresiduals(TransformedMalesNorway1)
+arimaTMN <- arima(ts(TransformedMalesNorway1), order = c(2,0,1))
+plot(forecast(arimaTMN))
+```
+Looking at the Sarima for males in Norway. The model seems to be a good fit since the ACF values
+look like white noise and the residuals have an average of about one. 
+```{r}
+sarimaTMN <- sarima(TransformedMalesNorway1, 1,0,0)
+summary(sarimaTMN)
+sarimaTMN$fit$coef
+
+```
+Looking at the ACF graphs for my data sets, I can clearly see that the Norway data sets have patterns and trends in them while the Denmark data sets don't. The trends and patterns could indicate that I should try using sarima or ardl models for those data sets. 
+```{r}
+acf(TransformedMalesNorway1)
+acf(TransformedFemalesNorway1)
+acf(TransformedFemalesDenmark1)
+acf(TransformedMalesDenmark1)
+```
+Here I look at a ARDL model for male deaths in Norway. The residuals all match the lines very closely which is a sign of a good fit. 
+```{r}
+dfm <- dynlm(TransformedMalesNorway1 ~ L(TransformedMalesNorway1, 1)) 
+dfm 
+autoplot(dfm)
+
+```
+
+Here I look at a ARDL model for female deaths in Norway. The residuals all match the lines very closely which is a sign of a good fit. 
+```{r}
+dfm1 <- dynlm(TransformedFemalesNorway1 ~ L(TransformedFemalesNorway1, 1)) 
+dfm1
+autoplot(dfm1)
+```
+
+Here I look at a ARDL model for male deaths in Denmark. The residuals all match the lines very closely which is a sign of a good fit. 
+```{r}
+dfm2 <- dynlm(TransformedMalesDenmark1 ~ L(TransformedMalesDenmark1, 1)) 
+dfm2 
+autoplot(dfm2)
+```
+
+Here I look at a ARDL model for female deaths in Denmark. The residuals don't line up too well in the standardized residuals vs fitted values graph which indicates a poor fit. 
+```{r}
+dfm3 <- dynlm(TransformedFemalesDenmark1 ~ L(TransformedFemalesDenmark1, 1)) 
+dfm3 
+autoplot(dfm3)
+```
+
